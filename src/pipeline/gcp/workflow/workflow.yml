@@ -1,0 +1,545 @@
+# File: etl-pipeline-workflow.yaml
+main:
+    steps:
+        # Staging -> Bronze
+
+        - run_merge_categories_bronze:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_bronze.categories AS B
+                                USING (
+                                  WITH deduplicated_staging AS (
+                                    SELECT
+                                      *,
+                                      ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS row_num
+                                    FROM hnv_staging.categories_temp
+                                  )
+                                  SELECT
+                                    * EXCEPT(row_num)
+                                  FROM deduplicated_staging
+                                  WHERE row_num = 1
+                                ) AS S
+                                ON B.id = S.id
+
+                                WHEN MATCHED AND B.updated_at < S.updated_at THEN
+                                  UPDATE SET 
+                                    B.name = S.name,
+                                    B.slug = S.slug,
+                                    B.description = S.description,
+                                    B.image_url = S.image_url,
+                                    B.is_active = S.is_active,
+                                    B.meta_title = S.meta_title,
+                                    B.meta_description = S.meta_description,
+                                    B.updated_at = S.updated_at
+
+                                WHEN NOT MATCHED THEN 
+                                INSERT ROW;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: categoriesMergeResultBronze
+
+        - run_merge_customers_bronze:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_bronze.customers AS B
+                                USING (
+                                  WITH deduplicated_staging AS (
+                                    SELECT
+                                      *,
+                                      ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS row_num
+                                    FROM `hnv_staging.customers_temp`
+                                  )
+                                  SELECT
+                                    * EXCEPT(row_num)
+                                  FROM deduplicated_staging
+                                  WHERE row_num = 1
+                                ) AS S
+                                ON B.id = S.id
+
+                                WHEN MATCHED AND B.updated_at < S.updated_at THEN
+                                  UPDATE SET 
+                                    B.first_name = S.first_name,
+                                    B.last_name = S.last_name,
+                                    B.email = S.email,
+                                    B.phone_number = S.phone_number,
+                                    B.city = S.city,
+                                    B.age_group = S.age_group,
+                                    B.updated_at = S.updated_at
+
+                                WHEN NOT MATCHED THEN 
+                                INSERT ROW;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: customersMergeResultBronze
+
+        - run_merge_orders_detail_bronze:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_bronze.orders_detail AS B
+                                USING (
+                                  WITH deduplicated_staging AS (
+                                    SELECT
+                                      *,
+                                      ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS row_num
+                                    FROM hnv_staging.orders_detail_temp
+                                  )
+                                  SELECT
+                                    * EXCEPT(row_num)
+                                  FROM deduplicated_staging
+                                  WHERE row_num = 1
+                                ) AS S
+                                ON B.id = S.id
+
+                                WHEN MATCHED AND B.updated_at < S.updated_at THEN
+                                  UPDATE SET 
+                                    B.order_id = S.order_id,
+                                    B.product_id = S.product_id,
+                                    B.product_option_id = S.product_option_id,
+                                    B.quantity = S.quantity,
+                                    B.unit_price = S.unit_price,
+                                    B.total_price = S.total_price,
+                                    B.updated_at = S.updated_at
+                                WHEN NOT MATCHED THEN 
+                                INSERT ROW;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: ordersDetailMergeResultBronze
+
+        - run_merge_orders_bronze:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_bronze.orders AS B
+                                USING (
+                                  WITH deduplicated_staging AS (
+                                    SELECT
+                                      *,
+                                      ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS row_num
+                                    FROM hnv_staging.orders_temp
+                                  )
+                                  SELECT
+                                    * EXCEPT(row_num)
+                                  FROM deduplicated_staging
+                                  WHERE row_num = 1
+                                ) AS S
+                                ON B.id = S.id
+
+                                WHEN MATCHED AND B.updated_at < S.updated_at THEN
+                                  UPDATE SET 
+                                    B.customer_id = S.customer_id,
+                                    B.order_date = S.order_date,
+                                    B.due_date = S.due_date,
+                                    B.ship_date = S.ship_date,
+                                    B.status = S.status,
+                                    B.total_amount = S.total_amount,
+                                    B.shipping_fee = S.shipping_fee,
+                                    B.discount_amount = S.discount_amount,
+                                    B.final_amount = S.final_amount,
+                                    B.address = S.address,
+                                    B.currency = S.currency,
+                                    B.payment_method = S.payment_method,
+                                    B.payment_status = S.payment_status,
+                                    B.customer_note = S.customer_note,
+                                    B.admin_note = S.admin_note,
+                                    B.updated_at = S.updated_at,
+                                    B.coupon_id = S.coupon_id
+                                WHEN NOT MATCHED THEN 
+                                INSERT ROW;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: ordersMergeResultBronze
+
+        - run_merge_product_options_bronze:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_bronze.product_options AS B
+                                USING (
+                                  WITH deduplicated_staging AS (
+                                    SELECT
+                                      *,
+                                      ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS row_num
+                                    FROM hnv_staging.product_options_temp
+                                  )
+                                  SELECT
+                                    * EXCEPT(row_num)
+                                  FROM deduplicated_staging
+                                  WHERE row_num = 1
+                                ) AS S
+                                ON B.id = S.id
+
+                                WHEN MATCHED AND B.updated_at < S.updated_at THEN
+                                  UPDATE SET 
+                                    B.product_id = S.product_id,
+                                    B.option_name = S.option_name,
+                                    B.price_adjustment = S.price_adjustment,
+                                    B.stock = S.stock,
+                                    B.is_available = S.is_available,
+                                    B.updated_at = S.updated_at
+                                WHEN NOT MATCHED THEN 
+                                INSERT ROW;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: productOptionsMergeResultBronze
+
+        - run_merge_products_bronze:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_bronze.products AS B
+                                USING (
+                                  WITH deduplicated_staging AS (
+                                    SELECT
+                                      *,
+                                      ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS row_num
+                                    FROM hnv_staging.products_temp
+                                  )
+                                  SELECT
+                                    * EXCEPT(row_num)
+                                  FROM deduplicated_staging
+                                  WHERE row_num = 1
+                                ) AS S
+                                ON B.id = S.id
+
+                                WHEN MATCHED AND B.updated_at < S.updated_at THEN
+                                  UPDATE SET 
+                                    B.title = S.title,
+                                    B.slug = S.slug,
+                                    B.price = S.price,
+                                    B.sale_price = S.sale_price,
+                                    B.currency = S.currency,
+                                    B.category_id = S.category_id,
+                                    B.description = S.description,
+                                    B.detail = S.detail,
+                                    B.link_shopee = S.link_shopee,
+                                    B.link_zalo = S.link_zalo,
+                                    B.link_instagram = S.link_instagram,
+                                    B.status = S.status,
+                                    B.meta_title = S.meta_title,
+                                    B.meta_description = S.meta_description,
+                                    B.view_count = S.view_count,
+                                    B.is_featured = S.is_featured,
+                                    B.updated_at = S.updated_at
+                                WHEN NOT MATCHED THEN 
+                                INSERT ROW;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: productsMergeResultBronze
+
+        # Truncate Staging
+        
+        - run_truncate_staging:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                TRUNCATE TABLE hnv_staging.categories_temp;
+                                TRUNCATE TABLE hnv_staging.customers_temp;
+                                TRUNCATE TABLE hnv_staging.orders_temp;
+                                TRUNCATE TABLE hnv_staging.orders_detail_temp;
+                                TRUNCATE TABLE hnv_staging.product_options_temp;
+                                TRUNCATE TABLE hnv_staging.products_temp;
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: truncateResult
+
+        # Bronze -> Silver
+
+        - run_load_silver_dim_customer:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO
+                                  `hnv_silver.dim_customer` AS sil  
+                                USING
+                                  (
+                                    SELECT
+                                      id AS customer_id,
+                                      TRIM(CONCAT(last_name, ' ', first_name)) AS full_name,
+                                      LOWER(email) AS email,
+                                      phone_number,
+                                      city,
+                                      age_group,
+                                      DATE(created_at) AS created_date,
+                                      updated_at AS source_updated_at 
+                                    FROM
+                                      `hnv_bronze.customers`
+                                    WHERE
+                                      id IS NOT NULL 
+                                      AND updated_at > (
+                                        SELECT MAX(source_updated_at) FROM `hnv_silver.dim_customer`
+                                      )
+                                  ) AS bro
+                                ON sil.customer_id = bro.customer_id 
+
+                                WHEN MATCHED AND sil.source_updated_at < bro.source_updated_at THEN
+                                  UPDATE SET
+                                    sil.full_name = bro.full_name,
+                                    sil.email = bro.email,
+                                    sil.phone_number = bro.phone_number,
+                                    sil.city = bro.city,
+                                    sil.age_group = bro.age_group,
+                                    sil.source_updated_at = bro.source_updated_at,
+                                    sil.load_timestamp = CURRENT_TIMESTAMP()
+                                    
+                                WHEN NOT MATCHED THEN
+                                  INSERT (
+                                    customer_key, customer_id, full_name, email, phone_number,
+                                    city, age_group, created_date, source_updated_at, load_timestamp
+                                  )
+                                  VALUES (
+                                    GENERATE_UUID(), bro.customer_id, bro.full_name, bro.email, bro.phone_number,
+                                    bro.city, bro.age_group, bro.created_date, bro.source_updated_at, CURRENT_TIMESTAMP()
+                                  );
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: mergeResultSilverDimCustomer
+
+        - run_load_silver_dim_product:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                MERGE INTO hnv_silver.dim_product AS sil
+                                USING (
+                                  WITH watermark AS (
+                                    SELECT 
+                                      MAX(source_updated_at) AS update_watermark
+                                    FROM `hnv_silver.dim_product`
+                                  ) 
+                                  SELECT
+                                    p.id AS product_id,
+                                    p.title AS product_name,
+                                    p.price AS product_price,
+                                    p.sale_price AS product_sale_price,
+                                    p.category_id,
+                                    c.name AS category_name,
+                                    po.id AS option_id,
+                                    po.option_name,
+                                    (p.price + po.price_adjustment) AS option_price,
+                                    DATE(p.created_at) AS created_date,
+                                    GREATEST(p.updated_at, po.updated_at, c.updated_at) AS source_updated_at
+                                  FROM `hnv_bronze.products` p 
+                                  JOIN `hnv_bronze.product_options` po ON p.id = po.product_id
+                                  JOIN `hnv_bronze.categories` c ON p.category_id = c.id
+                                  CROSS JOIN watermark AS tw
+                                  WHERE 
+                                    p.id IS NOT NULL AND po.id IS NOT NULL AND c.id IS NOT NULL
+                                    AND p.status = 'active' AND po.is_available = 1 AND c.is_active = 1
+                                    AND GREATEST(p.updated_at, po.updated_at, c.updated_at) > tw.update_watermark
+                                ) AS bro
+                                ON sil.option_id = bro.option_id
+
+                                WHEN MATCHED AND sil.source_updated_at < bro.source_updated_at THEN 
+                                  UPDATE SET 
+                                    sil.product_id = bro.product_id,
+                                    sil.product_name = bro.product_name,
+                                    sil.product_price = bro.product_price,
+                                    sil.product_sale_price = bro.product_sale_price,
+                                    sil.category_id = bro.category_id,
+                                    sil.category_name = bro.category_name,
+                                    sil.option_id = bro.option_id,
+                                    sil.option_name = bro.option_name,
+                                    sil.option_price = bro.option_price,
+                                    sil.source_updated_at = bro.source_updated_at,
+                                    sil.load_timestamp = CURRENT_TIMESTAMP()
+
+                                WHEN NOT MATCHED THEN 
+                                  INSERT (product_key, product_id, product_name, product_price,
+                                          product_sale_price, category_id, category_name, option_id,
+                                          option_name, option_price, created_date, source_updated_at, load_timestamp)
+                                  VALUES (
+                                    GENERATE_UUID(), bro.product_id, bro.product_name, bro.product_price,
+                                    bro.product_sale_price, bro.category_id, bro.category_name, bro.option_id,
+                                    bro.option_name, bro.option_price, bro.created_date, bro.source_updated_at, CURRENT_TIMESTAMP()
+                                  );
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: mergeResultSilverDimProduct
+
+        - run_load_silver_fact:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                CREATE OR REPLACE TABLE hnv_silver.fact_sales AS
+                                SELECT
+                                  GENERATE_UUID() AS sale_key,
+                                  DATE(o.order_date) AS order_date,
+                                  o.customer_id,
+                                  od.product_id,
+                                  od.product_option_id,
+                                  SUM(od.quantity) AS total_quantity,
+                                  SUM(od.total_price) AS total_revenue,
+                                  SUM(od.total_price) - SUM(p.cost * od.quantity) AS profit_amount,
+                                  MAX(GREATEST(o.updated_at, od.updated_at, p.updated_at)) AS source_updated_at,
+                                  CURRENT_TIMESTAMP() AS load_timestamp
+                                FROM hnv_bronze.orders o
+                                JOIN hnv_bronze.orders_detail od ON o.id = od.order_id
+                                JOIN hnv_bronze.products p ON od.product_id = p.id
+                                WHERE 
+                                  o.payment_status = 'paid'
+                                GROUP BY 
+                                  order_date, 
+                                  o.customer_id, 
+                                  od.product_id, 
+                                  od.product_option_id
+                                ORDER BY
+                                  order_date,
+                                  customer_id
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: insertResultFact
+        
+        # Silver -> Gold
+
+        - run_load_gold_dim_product:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                CREATE OR REPLACE TABLE hnv_gold.dim_product AS
+                                  SELECT
+                                    product_key,
+                                    product_id,
+                                    product_name,
+                                    product_price,
+                                    product_sale_price,
+                                    cost,
+                                    category_id,
+                                    category_name,
+                                    option_id,
+                                    option_name,
+                                    option_price
+                                  FROM `hnv_silver.dim_product`
+                                  WHERE cost IS NOT NULL
+                                  ORDER BY product_id, option_id
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: insertResultGoldDimProduct
+
+        - run_load_gold_dim_customer:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                CREATE OR REPLACE TABLE hnv_gold.dim_customer AS
+                                  SELECT
+                                    customer_key,
+                                    customer_id,
+                                    full_name,
+                                    email,
+                                    phone_number,
+                                    city,
+                                    age_group
+                                FROM hnv_silver.dim_customer
+                                ORDER BY customer_id
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: insertResultGoldDimCustomer
+
+        - run_load_gold_fact_sales:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: "cloud-project-478014"
+                body:
+                    configuration:
+                        query:
+                            query: |
+                                CREATE OR REPLACE TABLE hnv_gold.fact_sales AS
+                                  SELECT
+                                    s.sale_key,
+                                    d.DateKey as date_key,
+                                    c.customer_key,
+                                    p.product_key,
+                                    s.total_quantity,
+                                    s.total_revenue,
+                                    s.profit_amount
+                                  FROM 
+                                    hnv_silver.fact_sales s
+                                  JOIN hnv_gold.dim_product p 
+                                    ON s.product_id = p.product_id AND s.product_option_id = p.option_id
+                                  JOIN hnv_gold.dim_customer c
+                                    ON s.customer_id = c.customer_id
+                                  JOIN hnv_gold.dim_date d
+                                    ON s.order_date = d.FullDate
+                                  ORDER BY date_key
+                            useLegacySql: false
+                        jobReference:
+                            location: asia-southeast1
+                            projectId: "cloud-project-478014"
+            result: insertResultGoldFactSales
+        
+        # End
+        - return_result:
+            return: "Workflow completed successfully."
