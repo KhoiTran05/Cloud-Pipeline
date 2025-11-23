@@ -9,5 +9,3 @@ A serverless ELT (Extract, Load, Transform) data pipeline designed to move trans
 - **Storage (Data Warehouse)**: Google BigQuery
 - **Transformation**: BigQuery Scheduled Queries (SQL).
 - **Orchestration**: GCP Workflows
-
-## Tech Stack
